@@ -1,5 +1,6 @@
 ﻿using BandWebApi.DbContexts;
 using BandWebApi.Entity;
+using BandWebApi.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,20 +11,23 @@ namespace BandWebApi.Services
 {
     public class BandAlbumRepository : IBandAlbumRepository
     {
-        private readonly BandAlbumContext _context ;
+        private readonly BandAlbumContext _context;
       
-        public BandAlbumRepository(BandAlbumContext context)
-        {
-            _context = context?? throw new ArgumentNullException(nameof(context));
-        }
-      
+        public BandAlbumRepository(BandAlbumContext context)=> _context = context?? throw new ArgumentNullException(nameof(context));
         public void AddAlbum(Guid bandId, Album album)
         {
             if (bandId == Guid.Empty)
+            {
                 throw new ArgumentNullException(nameof(bandId));
+            }
+
             if (album == null)
+            {
                 throw new ArgumentNullException(nameof(album));
+            }
+
             album.BandId = bandId;
+            _context.Albums.Add(album);
         }
       
         public void AddBand( Band band)
@@ -84,11 +88,29 @@ namespace BandWebApi.Services
             return _context.Bands.FirstOrDefault(b => b.Id == bandId);
         }
 
-        public IEnumerable<Band> GetBands()
+        public IEnumerable<Band> GetBands()=> _context.Bands.ToList();
+        public IEnumerable<Band> GetBands(BandResourceParameter bandResourceParameter)
         {
-            return _context.Bands.ToList();
+            if (bandResourceParameter == null)
+                throw new ArgumentNullException(nameof(bandResourceParameter));
+          
+            if (string.IsNullOrWhiteSpace(bandResourceParameter.MainGenre) && string.IsNullOrWhiteSpace(bandResourceParameter.SearchQuery))
+                return GetBands();
+          
+            var collection = _context.Bands.AsQueryable();
+            
+            if (!string.IsNullOrWhiteSpace(bandResourceParameter.MainGenre))
+            {
+                var MainGenre = bandResourceParameter.MainGenre.Trim();
+                collection = collection.Where(a => a.MainGenre == MainGenre);
+            }
+            if (!string.IsNullOrWhiteSpace(bandResourceParameter.SearchQuery))
+            {
+                var SearchQuery = bandResourceParameter.SearchQuery.Trim();
+                collection = collection.Where(a => a.Name.Contains( SearchQuery));
+            }
+            return collection.AsEnumerable();
         }
-
         public IEnumerable<Band> GetBands(IEnumerable<Guid> bandIds)
         {
             if (bandIds == null)
@@ -96,10 +118,8 @@ namespace BandWebApi.Services
             return _context.Bands.Where(b=> bandIds.Contains(b.Id)).OrderBy(b=>b.Name).AsEnumerable();        
         }
 
-        public bool Save()
-        {
-            return (_context.SaveChanges() > 0);
-        }
+        public bool Save()=>(_context.SaveChanges() > 0);
+        
 
         public void UpdateAlbum(Album album)
         {
@@ -107,7 +127,7 @@ namespace BandWebApi.Services
                 throw new ArgumentNullException(nameof(album));
             // not implemented
         }
-
+ 
         public void UpdateBand(Band band)
         {
             if (band == null)

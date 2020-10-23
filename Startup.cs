@@ -6,6 +6,9 @@ using Microsoft.Extensions.Hosting;
 using BandWebApi.Services;
 using BandWebApi.DbContexts;
 using Microsoft.EntityFrameworkCore;
+using System;
+using AutoMapper;
+using Microsoft.AspNetCore.Http;
 
 namespace BandWebApi
 {
@@ -29,6 +32,7 @@ namespace BandWebApi
             {
                 setupAction.ReturnHttpNotAcceptable = true;
             }).AddXmlDataContractSerializerFormatters();
+             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             services.AddScoped<IBandAlbumRepository, BandAlbumRepository>();
             services.AddDbContext<BandAlbumContext>(options => 
             {
@@ -39,9 +43,16 @@ namespace BandWebApi
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if (env.IsDevelopment())
-            {
+            if (env.IsDevelopment()) {
                 app.UseDeveloperExceptionPage();
+            }
+            else {
+                app.UseExceptionHandler(appBuilder=>  {
+                    appBuilder.Run(async c=> {
+                        c.Response.StatusCode=500;
+                        await c.Response.WriteAsync("Something went horribly wrong, try again later ");
+                    });
+                });
             }
 
             app.UseRouting();
